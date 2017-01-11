@@ -35,24 +35,28 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "Analogowy_Czujnik_Odleglosci.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+Analogowy_Czujnik_Odleglosci czujnik_analogowy;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
+static void MX_TIM4_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+void HAL_SYSTICK_Callback(void); //obsluga przerwania timera systick
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim); //obsluga przerwania timera htim
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);//obsluga przerwan przychodzacych z zewnatrz do pinow
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -76,6 +80,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM4_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -88,7 +93,10 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+	  HAL_Delay(5000);
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+	  HAL_Delay(5000);
   }
   /* USER CODE END 3 */
 
@@ -141,6 +149,38 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
+/* TIM4 init function */
+static void MX_TIM4_Init(void)
+{
+
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 0xFFFF;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -173,13 +213,83 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : TRIG_Pin */
+  GPIO_InitStruct.Pin = TRIG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(TRIG_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ECHO_Pin */
+  GPIO_InitStruct.Pin = ECHO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ECHO_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
+//definicje fcji
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Instance == TIM4)
+	{
+		//faza pomiaru czujnika analogowego odleglosci - druga
+		HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);//trig=0
+		//tim_co->stop
+		HAL_TIM_Base_Stop(&htim4);
+		//ustawiamy flage - faze pomiaru
+		czujnik_analogowy.faza_pomiaru = druga;
+		return;
+	}
+}
+void HAL_SYSTICK_Callback(void)
+{
+	static int iterator_pomiaru=0;
+	if(iterator_pomiaru == OKRES_POMIARU_ODLEGLOSCI)
+	{//faza pomiaru czujnika analogowego odleglosci - pierwsza
+		//HAL_TIM_Base_Stop_IT(&htim4);
+		HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);//TRIG=1
+		//TIM_Co->count
+		htim4.Init.Period = 639;
+		HAL_TIM_Base_Init(&htim4);
+		HAL_TIM_Base_Start_IT(&htim4);
+		//ustawiamy flage - faze pomiaru
+		czujnik_analogowy.faza_pomiaru = pierwsza;
+	}
+	iterator_pomiaru++;
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == ECHO_Pin && HAL_GPIO_ReadPin(ECHO_GPIO_Port, ECHO_Pin) == GPIO_PIN_SET)
+	{
+		//faza pomiaru czujnika analogowego odleglosci - trzecia
+		//tim_co->zliczanieDlugosciImpulsu
+		htim4.Init.Period = 0xFFFF;
+		htim4.Init.Prescaler = 200;//bylo 15 - licznik sie zerowal
+		HAL_TIM_Base_Init(&htim4);
+		HAL_TIM_Base_Start(&htim4);
+		czujnik_analogowy.faza_pomiaru = trzecia;
+	}
+	else if(GPIO_Pin == ECHO_Pin && HAL_GPIO_ReadPin(ECHO_GPIO_Port, ECHO_Pin) == GPIO_PIN_RESET)
+	{
+		//faza pomiaru czujnika analogowego odleglosci - brak(zapis wyniku i wylaczenie timera
+		czujnik_analogowy.odleglosc = htim4.Instance->CNT;
+		HAL_TIM_Base_Stop(&htim4);
+		czujnik_analogowy.faza_pomiaru = brak;
+	}
+}
 /* USER CODE END 4 */
 
 /**
