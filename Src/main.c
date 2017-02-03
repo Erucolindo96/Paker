@@ -43,7 +43,7 @@ TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-Analogowy_Czujnik_Odleglosci czujnik_analogowy;
+Analogowy_Czujnik_Odleglosci czujnik_analogowy; //odleglosc podana w milimetrach
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -287,7 +287,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	else if(GPIO_Pin == ECHO_Pin && HAL_GPIO_ReadPin(ECHO_GPIO_Port, ECHO_Pin) == GPIO_PIN_RESET)
 	{
 		//faza pomiaru czujnika analogowego odleglosci - brak(zapis wyniku i wylaczenie timera
-		czujnik_analogowy.odleglosc = htim4.Instance->CNT;
+		uint16_t pomiar = htim4.Instance->CNT;
+		czujnik_analogowy.odleglosc = (pomiar * htim4.Init.Prescaler * 265)/100000; //CNT*PSC*265/10^5 - odleglosc w milimetrach
+
+//		czujnik_analogowy.odleglosc = htim4.Instance->CNT;
 		HAL_TIM_Base_Stop(&htim4);
 		czujnik_analogowy.faza_pomiaru = brak;
 	}

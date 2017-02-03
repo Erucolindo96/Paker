@@ -10,7 +10,7 @@
 
 typedef struct Analogowy_Czujnik_Odleglosci
 {
-	volatile u_int32_t odleglosc;//w milimetrach
+	volatile u_int16_t odleglosc;//w milimetrach
 	volatile enum {brak, pierwsza, druga, trzecia} faza_pomiaru;
 }Analogowy_Czujnik_Odleglosci;
 
