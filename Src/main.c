@@ -247,7 +247,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		//faza pomiaru czujnika analogowego odleglosci - druga
 		HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);//trig=0
 		//tim_co->stop
-		HAL_TIM_Base_Stop(&htim4);
+		HAL_TIM_Base_Stop_IT(&htim4);//czy to zatrzymuje licznik ? powinno
 		//ustawiamy flage - faze pomiaru
 		czujnik_analogowy.faza_pomiaru = druga;
 		return;
@@ -255,8 +255,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 void HAL_SYSTICK_Callback(void)
 {
-	static int iterator_pomiaru=0;
-	if(iterator_pomiaru == OKRES_POMIARU_ODLEGLOSCI)
+	static int iterator_pomiaru_odleglosci=0;
+	if(iterator_pomiaru_odleglosci == OKRES_POMIARU_ODLEGLOSCI)
 	{//faza pomiaru czujnika analogowego odleglosci - pierwsza
 		//HAL_TIM_Base_Stop_IT(&htim4);
 		HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);//TRIG=1
@@ -266,8 +266,10 @@ void HAL_SYSTICK_Callback(void)
 		HAL_TIM_Base_Start_IT(&htim4);
 		//ustawiamy flage - faze pomiaru
 		czujnik_analogowy.faza_pomiaru = pierwsza;
+		iterator_pomiaru_odleglosci = 0;
 	}
-	iterator_pomiaru++;
+	iterator_pomiaru_odleglosci++;
+
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -277,7 +279,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		//faza pomiaru czujnika analogowego odleglosci - trzecia
 		//tim_co->zliczanieDlugosciImpulsu
 		htim4.Init.Period = 0xFFFF;
-		htim4.Init.Prescaler = 200;//bylo 15 - licznik sie zerowal
+		htim4.Init.Prescaler = 50;//bylo 15 - licznik sie zerowal
 		HAL_TIM_Base_Init(&htim4);
 		HAL_TIM_Base_Start(&htim4);
 		czujnik_analogowy.faza_pomiaru = trzecia;
