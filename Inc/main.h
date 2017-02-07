@@ -47,6 +47,10 @@
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define PRAWY_CZUJNIK_Pin GPIO_PIN_5
+#define PRAWY_CZUJNIK_GPIO_Port GPIOC
+#define LEWY_CZUJNIK_Pin GPIO_PIN_2
+#define LEWY_CZUJNIK_GPIO_Port GPIOB
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
