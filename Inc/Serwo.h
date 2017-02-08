@@ -11,8 +11,10 @@
 /*
  * Zalozenia
  *
- * Kat mozna regulowac co 1 stopien (czyli od 0 do 179)
+ * Kat mozna regulowac co 1 stopien (czyli od 0 do 180)
  *
+ *Kat mozna zmieniac tylko za pomoca fcji ustaw_kat
+ *Analogicznie odczytywac
  *
 */
 typedef struct
@@ -27,8 +29,8 @@ void Serwo_init(Serwo *serwo)
 
 void Serwo_ustaw_nowy_kat(Serwo *serwo, uint8_t nowy_kat)
 {
-	if(nowy_kat >179)
-		nowy_kat = 179;
+	if(nowy_kat >180)
+		nowy_kat = 180;
 	serwo->kat = nowy_kat;
 }
 

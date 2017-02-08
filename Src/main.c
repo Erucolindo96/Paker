@@ -33,8 +33,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f1xx_hal.h"
-
 /* USER CODE BEGIN Includes */
+#include "Serwo.h"
 
 /* USER CODE END Includes */
 
@@ -43,7 +43,8 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-int wartosc_rejestru_CCR1 = 450;
+Serwo serwo_lewe;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +57,8 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+void HAL_SYSTICK_Callback(void);
+uint16_t oblicz_wartosc_CCR(uint8_t kat);//kat z zakresu 0-179
 
 /* USER CODE END PFP */
 
@@ -84,8 +87,8 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
-
+  	 int wartosc_kata = 0;
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -95,13 +98,16 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-
-	  htim3.Instance->CCR1 = wartosc_rejestru_CCR1;
-	  if(wartosc_rejestru_CCR1 >= 1048)
-		  wartosc_rejestru_CCR1 = 450;
-	  wartosc_rejestru_CCR1+=10;
-	  HAL_Delay(500);
-//ten kod powyzej powinien generowac PWM sterujacego serwem od 0 do 180 stopni
+/*	  wartosc_kata+=10;
+	  if(wartosc_kata > 180)
+		  wartosc_kata = 0;
+*/
+	 wartosc_kata = 180;
+	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 HAL_Delay(1500);
+	 wartosc_kata = 0;
+	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 HAL_Delay(1500);
 
 
 
@@ -250,7 +256,35 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+uint16_t oblicz_wartosc_CCR(uint8_t kat)
+{
+	uint16_t wynik = (458 * kat)/100 + 300;
+	return wynik;
+}
+void Serwo_lewe_aktualizuj_wartosc_CCR(uint16_t nowa_wartosc)
+{
+	htim3.Instance->CCR1 = nowa_wartosc;
+}
+void Serwo_prawe_aktualizuj_wartosc_CCR(uint16_t nowa_wartosc)
+{
+	htim3.Instance->CCR2 = nowa_wartosc;
 
+}
+void HAL_SYSTICK_Callback(void)
+{
+	//aktualizujemy polozenie serwa lewego w oparciu o dane ze struktury statycznej
+	//aktualizujemy z czestoscia 40 ms - zeby nastapil co najmniej jeden pe³en okres sygnalu sterujacego
+	static int iterator_serwomechanizmu = 0;
+	if(iterator_serwomechanizmu == 40)
+	{
+		iterator_serwomechanizmu = 0;
+		uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
+		uint16_t CCR_lewego = oblicz_wartosc_CCR(kat_lewego);
+		Serwo_lewe_aktualizuj_wartosc_CCR(CCR_lewego);
+	}
+	++iterator_serwomechanizmu;
+
+}
 /* USER CODE END 4 */
 
 /**
