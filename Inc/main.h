@@ -58,7 +58,7 @@
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
+#define OKRES_AKTUALIZACJI_SERWOMECHANIZMOW 40
 /* USER CODE END Private defines */
 
 /**

@@ -59,8 +59,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void HAL_SYSTICK_Callback(void);
-uint16_t oblicz_wartosc_CCR(uint8_t kat);//kat z zakresu 0-179
-
+void uruchom_PWM_serwomechanizmow(void);
+void aktualizacja_polozenia_serwomechanizmow(void);
+void inicjalizacja_urzadzen_obslugiwanych(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -87,10 +88,14 @@ int main(void)
   MX_TIM3_Init();
 
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  	 int wartosc_kata = 0;
+
+  inicjalizacja_urzadzen_obslugiwanych();
+
+
+  //kod testowy
+  int wartosc_kata = 0;
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+  //koniec kodu testowego
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,6 +109,7 @@ int main(void)
 	  if(wartosc_kata > 180)
 		  wartosc_kata = 0;
 */
+	  //kod testowy
 	 wartosc_kata = 180;
 	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
 	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
@@ -112,7 +118,7 @@ int main(void)
 	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
 	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
 	 HAL_Delay(1500);
-
+	 //koniec kody testowego
 
 
 
@@ -260,21 +266,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint16_t oblicz_wartosc_CCR(uint8_t kat)
+void uruchom_PWM_serwomechanizmow(void)
 {
-	uint16_t wynik = (458 * kat)/100 + 300;
-	return wynik;
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 }
 
 
 void aktualizacja_polozenia_serwomechanizmow(void)//powinna byc wolana co najmniej co 20 ms(taki jest okres sygnaly sterujacego serwami)
 {
 	uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
-	uint16_t CCR_lewego = oblicz_wartosc_CCR(kat_lewego);
+	uint16_t CCR_lewego = Serwo_oblicz_wartosc_CCR(kat_lewego);
 	htim3.Instance->CCR1 = CCR_lewego;
 
 	uint8_t kat_prawego = Serwo_wartosc_kata(&serwo_prawe);
-	uint16_t CCR_prawego = oblicz_wartosc_CCR(kat_prawego);
+	uint16_t CCR_prawego = Serwo_oblicz_wartosc_CCR(kat_prawego);
 	htim3.Instance->CCR2 = CCR_prawego;
 
 }
@@ -285,12 +291,19 @@ void HAL_SYSTICK_Callback(void)
 	static int iterator_serwomechanizmu = 0;
 	++iterator_serwomechanizmu;
 
-	if(iterator_serwomechanizmu == 39)
+	if(iterator_serwomechanizmu == OKRES_AKTUALIZACJI_SERWOMECHANIZMOW)
 	{
 		aktualizacja_polozenia_serwomechanizmow();
 	}
 	iterator_serwomechanizmu = iterator_serwomechanizmu%40;
 
+}
+
+void inicjalizacja_urzadzen_obslugiwanych(void)
+{
+	Serwo_init(&serwo_lewe);
+	Serwo_init(&serwo_prawe);
+	uruchom_PWM_serwomechanizmow();
 }
 /* USER CODE END 4 */
 
