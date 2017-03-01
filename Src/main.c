@@ -44,6 +44,7 @@ TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 Serwo serwo_lewe;
+Serwo serwo_prawe;
 
 /* USER CODE END PV */
 
@@ -87,6 +88,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   	 int wartosc_kata = 0;
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
@@ -104,9 +106,11 @@ int main(void)
 */
 	 wartosc_kata = 180;
 	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
 	 HAL_Delay(1500);
 	 wartosc_kata = 0;
 	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
 	 HAL_Delay(1500);
 
 
@@ -261,13 +265,17 @@ uint16_t oblicz_wartosc_CCR(uint8_t kat)
 	uint16_t wynik = (458 * kat)/100 + 300;
 	return wynik;
 }
-void Serwo_lewe_aktualizuj_wartosc_CCR(uint16_t nowa_wartosc)
+
+
+void aktualizacja_polozenia_serwomechanizmow(void)//powinna byc wolana co najmniej co 20 ms(taki jest okres sygnaly sterujacego serwami)
 {
-	htim3.Instance->CCR1 = nowa_wartosc;
-}
-void Serwo_prawe_aktualizuj_wartosc_CCR(uint16_t nowa_wartosc)
-{
-	htim3.Instance->CCR2 = nowa_wartosc;
+	uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
+	uint16_t CCR_lewego = oblicz_wartosc_CCR(kat_lewego);
+	htim3.Instance->CCR1 = CCR_lewego;
+
+	uint8_t kat_prawego = Serwo_wartosc_kata(&serwo_prawe);
+	uint16_t CCR_prawego = oblicz_wartosc_CCR(kat_prawego);
+	htim3.Instance->CCR2 = CCR_prawego;
 
 }
 void HAL_SYSTICK_Callback(void)
@@ -275,14 +283,13 @@ void HAL_SYSTICK_Callback(void)
 	//aktualizujemy polozenie serwa lewego w oparciu o dane ze struktury statycznej
 	//aktualizujemy z czestoscia 40 ms - zeby nastapil co najmniej jeden pe³en okres sygnalu sterujacego
 	static int iterator_serwomechanizmu = 0;
-	if(iterator_serwomechanizmu == 40)
-	{
-		iterator_serwomechanizmu = 0;
-		uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
-		uint16_t CCR_lewego = oblicz_wartosc_CCR(kat_lewego);
-		Serwo_lewe_aktualizuj_wartosc_CCR(CCR_lewego);
-	}
 	++iterator_serwomechanizmu;
+
+	if(iterator_serwomechanizmu == 39)
+	{
+		aktualizacja_polozenia_serwomechanizmow();
+	}
+	iterator_serwomechanizmu = iterator_serwomechanizmu%40;
 
 }
 /* USER CODE END 4 */
