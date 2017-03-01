@@ -54,6 +54,8 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void HAL_SYSTICK_Callback(void);
+void pomiar_odleglosci_cyfrowy(void);
+void inicjalizacja_urzadzen_obslugiwanych(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -79,7 +81,7 @@ int main(void)
   MX_GPIO_Init();
 
   /* USER CODE BEGIN 2 */
-
+  inicjalizacja_urzadzen_obslugiwanych();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -89,10 +91,12 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+	  //kod testowy
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 	  HAL_Delay(5000);
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 	  HAL_Delay(5000);
+	  //koniec kodu testowego
   }
   /* USER CODE END 3 */
 
@@ -198,6 +202,12 @@ static void MX_GPIO_Init(void)
 void HAL_SYSTICK_Callback(void)
 {
 	//moze zajsc koniecznosc mierzenia z mniejsza czestoscia, by nie blokowac dzialania STMa
+	pomiar_odleglosci_cyfrowy();
+
+}
+
+void pomiar_odleglosci_cyfrowy(void)
+{
 	cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = nie;
 	cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = nie;
 
@@ -205,7 +215,12 @@ void HAL_SYSTICK_Callback(void)
 		cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = tak;
 	if(HAL_GPIO_ReadPin(PRAWY_CZUJNIK_GPIO_Port, PRAWY_CZUJNIK_Pin)== GPIO_PIN_SET)
 		cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = tak;
+}
 
+void inicjalizacja_urzadzen_obslugiwanych(void)
+{
+	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_lewy);
+	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_prawy);
 }
 /* USER CODE END 4 */
 
