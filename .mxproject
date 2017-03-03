@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/Users/Erukolindo/Desktop/Projekty/Robot Minisumo/Biblioteki/Workspace/Paker/Inc
+HeaderPath=C:/Users/Erukolindo/Git/Paker/Inc
 HeaderFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;
-SourcePath=C:/Users/Erukolindo/Desktop/Projekty/Robot Minisumo/Biblioteki/Workspace/Paker/Src
+SourcePath=C:/Users/Erukolindo/Git/Paker/Src
 SourceFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]

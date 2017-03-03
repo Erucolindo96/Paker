@@ -36,6 +36,7 @@
 
 /* USER CODE BEGIN Includes */
 #include "Analogowy_Czujnik_Odleglosci.h"
+#include "Cyfrowy_Czujnik_Odleglosci.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -43,7 +44,10 @@ TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+
 Analogowy_Czujnik_Odleglosci czujnik_analogowy; //odleglosc podana w milimetrach
+Cyfrowy_Czujnik_Odleglosci cyfrowy_czujnik_prawy;
+Cyfrowy_Czujnik_Odleglosci cyfrowy_czujnik_lewy;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +65,7 @@ void pierwsza_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void druga_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void trzecia_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void zapis_wyniku_pomiaru_Analogowy_Czujnik_Odleglosci(void);
+void pomiar_odleglosci_cyfrowy(void);
 void inicjalizacja_urzadzen_obslugiwanych(void);
 /* USER CODE END PFP */
 
@@ -98,10 +103,12 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+	  //kod testowy
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 	  HAL_Delay(5000);
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 	  HAL_Delay(5000);
+	  //koniec kodu testowego
   }
   /* USER CODE END 3 */
 
@@ -229,6 +236,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ECHO_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin : PRAWY_CZUJNIK_Pin */
+  GPIO_InitStruct.Pin = PRAWY_CZUJNIK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(PRAWY_CZUJNIK_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LEWY_CZUJNIK_Pin */
+  GPIO_InitStruct.Pin = LEWY_CZUJNIK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(LEWY_CZUJNIK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -244,17 +262,18 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 //definicje fcji
-
-
 void HAL_SYSTICK_Callback(void)
 {
+	//moze zajsc koniecznosc mierzenia z mniejsza czestoscia, by nie blokowac dzialania STMa
+	pomiar_odleglosci_cyfrowy();
+
 	static int iterator_pomiaru_odleglosci=0;
 	if(iterator_pomiaru_odleglosci == OKRES_POMIARU_ODLEGLOSCI)
 	{
 		pierwsza_faza_pomiaru_Analogowy_Czujnik_Odleglosci();
 		iterator_pomiaru_odleglosci = 0;
 	}
-	iterator_pomiaru_odleglosci++;
+	++iterator_pomiaru_odleglosci;
 
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -312,8 +331,22 @@ void zapis_wyniku_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 }
 void inicjalizacja_urzadzen_obslugiwanych(void)
 {
-	  Analogowy_Czujnik_Odleglosci_init(&czujnik_analogowy);
+	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_lewy);
+	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_prawy);
+	Analogowy_Czujnik_Odleglosci_init(&czujnik_analogowy);
 }
+
+void pomiar_odleglosci_cyfrowy(void)
+{
+	cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = nie;
+	cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = nie;
+
+	if(HAL_GPIO_ReadPin(LEWY_CZUJNIK_GPIO_Port, LEWY_CZUJNIK_Pin)== GPIO_PIN_RESET)//zdaje sie, ze czujniki jesli cos widza to daja stan niski, w przeciwnym razie - wysoki
+		cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = tak;
+	if(HAL_GPIO_ReadPin(PRAWY_CZUJNIK_GPIO_Port, PRAWY_CZUJNIK_Pin)== GPIO_PIN_RESET)
+		cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = tak;
+}
+
 /* USER CODE END 4 */
 
 /**
