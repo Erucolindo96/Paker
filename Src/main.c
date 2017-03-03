@@ -37,13 +37,20 @@
 /* USER CODE BEGIN Includes */
 #include "Analogowy_Czujnik_Odleglosci.h"
 #include "Cyfrowy_Czujnik_Odleglosci.h"
+
+/* USER CODE BEGIN Includes */
+#include "Serwo.h"
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+Serwo serwo_lewe;
+Serwo serwo_prawe;
 
 Analogowy_Czujnik_Odleglosci czujnik_analogowy; //odleglosc podana w milimetrach
 Cyfrowy_Czujnik_Odleglosci cyfrowy_czujnik_prawy;
@@ -55,6 +62,9 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM3_Init(void);                                    
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+                                
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -66,6 +76,8 @@ void druga_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void trzecia_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void zapis_wyniku_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void pomiar_odleglosci_cyfrowy(void);
+void uruchom_PWM_serwomechanizmow(void);
+void aktualizacja_polozenia_serwomechanizmow(void);
 void inicjalizacja_urzadzen_obslugiwanych(void);
 /* USER CODE END PFP */
 
@@ -91,9 +103,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM4_Init();
+  MX_TIM3_Init();
 
   /* USER CODE BEGIN 2 */
   inicjalizacja_urzadzen_obslugiwanych();
+
+
+  //kod testowy
+  int wartosc_kata = 0;
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -103,7 +121,20 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+/*	  wartosc_kata+=10;
+	  if(wartosc_kata > 180)
+		  wartosc_kata = 0;
+*/
 	  //kod testowy
+	 wartosc_kata = 180;
+	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
+	 HAL_Delay(1500);
+	 wartosc_kata = 0;
+	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
+	 HAL_Delay(1500);
+	 
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 	  HAL_Delay(5000);
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -193,6 +224,60 @@ static void MX_TIM4_Init(void)
 
 }
 
+/* TIM3 init function */
+static void MX_TIM3_Init(void)
+{
+
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+  TIM_OC_InitTypeDef sConfigOC;
+
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 127;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 9999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 450;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -275,6 +360,15 @@ void HAL_SYSTICK_Callback(void)
 	}
 	++iterator_pomiaru_odleglosci;
 
+	static int iterator_serwomechanizmu = 0;
+	++iterator_serwomechanizmu;
+
+	if(iterator_serwomechanizmu == OKRES_AKTUALIZACJI_SERWOMECHANIZMOW)
+	{
+		aktualizacja_polozenia_serwomechanizmow();
+		iterator_serwomechanizmu = 0;
+	}
+
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -334,6 +428,7 @@ void inicjalizacja_urzadzen_obslugiwanych(void)
 	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_lewy);
 	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_prawy);
 	Analogowy_Czujnik_Odleglosci_init(&czujnik_analogowy);
+	uruchom_PWM_serwomechanizmow();
 }
 
 void pomiar_odleglosci_cyfrowy(void)
@@ -346,6 +441,25 @@ void pomiar_odleglosci_cyfrowy(void)
 	if(HAL_GPIO_ReadPin(PRAWY_CZUJNIK_GPIO_Port, PRAWY_CZUJNIK_Pin)== GPIO_PIN_RESET)
 		cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = tak;
 }
+void uruchom_PWM_serwomechanizmow(void)
+{
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+}
+
+
+void aktualizacja_polozenia_serwomechanizmow(void)//powinna byc wolana co najmniej co 20 ms(taki jest okres sygnaly sterujacego serwami)
+{
+	uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
+	uint16_t CCR_lewego = Serwo_oblicz_wartosc_CCR(kat_lewego);
+	htim3.Instance->CCR1 = CCR_lewego;
+
+	uint8_t kat_prawego = Serwo_wartosc_kata(&serwo_prawe);
+	uint16_t CCR_prawego = Serwo_oblicz_wartosc_CCR(kat_prawego);
+	htim3.Instance->CCR2 = CCR_prawego;
+
+}
+
 
 /* USER CODE END 4 */
 
