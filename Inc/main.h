@@ -58,7 +58,7 @@
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-#define OKRES_POMIARU_ODLEGLOSCI 1000 //milisekund - co taki czas bedzie wykonywany pomiar
+#define OKRES_POMIARU_ODLEGLOSCI 50 //milisekund - co taki czas bedzie wykonywany pomiar
 /* USER CODE END Private defines */
 
 /**
