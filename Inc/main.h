@@ -47,6 +47,18 @@
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define TRIG_Pin GPIO_PIN_12
+#define TRIG_GPIO_Port GPIOB
+#define ECHO_Pin GPIO_PIN_13
+#define ECHO_GPIO_Port GPIOB
+#define PRAWY_CZUJNIK_Pin GPIO_PIN_5
+#define PRAWY_CZUJNIK_GPIO_Port GPIOC
+#define LEWY_CZUJNIK_Pin GPIO_PIN_2
+#define LEWY_CZUJNIK_GPIO_Port GPIOB
+#define LEWE_SERWO_Pin GPIO_PIN_6
+#define LEWE_SERWO_GPIO_Port GPIOA
+#define PRAWE_SERWO_Pin GPIO_PIN_7
+#define PRAWE_SERWO_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
@@ -54,7 +66,8 @@
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
+#define OKRES_POMIARU_ODLEGLOSCI 50 //milisekund - co taki czas bedzie wykonywany pomiar
+#define OKRES_AKTUALIZACJI_SERWOMECHANIZMOW 40
 /* USER CODE END Private defines */
 
 /**
