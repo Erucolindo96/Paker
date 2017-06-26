@@ -35,11 +35,11 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-#include "Analogowy_Czujnik_Odleglosci.h"
-#include "Cyfrowy_Czujnik_Odleglosci.h"
+#include "Robot.h"
 
-/* USER CODE BEGIN Includes */
-#include "Serwo.h"
+//#include "Analogowy_Czujnik_Odleglosci.h"
+//#include "Cyfrowy_Czujnik_Odleglosci.h"
+//#include "Serwo.h"
 
 /* USER CODE END Includes */
 
@@ -49,12 +49,9 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-Serwo serwo_lewe;
-Serwo serwo_prawe;
 
-Analogowy_Czujnik_Odleglosci czujnik_analogowy; //odleglosc podana w milimetrach
-Cyfrowy_Czujnik_Odleglosci cyfrowy_czujnik_prawy;
-Cyfrowy_Czujnik_Odleglosci cyfrowy_czujnik_lewy;
+Robot minisumo;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,14 +68,19 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HAL_SYSTICK_Callback(void); //obsluga przerwania timera systick
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim); //obsluga przerwania timera htim
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);//obsluga przerwan przychodzacych z zewnatrz do pinow
+
 void pierwsza_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void druga_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void trzecia_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void);
 void zapis_wyniku_pomiaru_Analogowy_Czujnik_Odleglosci(void);
+
 void pomiar_odleglosci_cyfrowy(void);
-void uruchom_PWM_serwomechanizmow(void);
+
 void aktualizacja_polozenia_serwomechanizmow(void);
+
 void inicjalizacja_urzadzen_obslugiwanych(void);
+void uruchom_PWM_serwomechanizmow(void);
+
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -111,7 +113,7 @@ int main(void)
 
   //kod testowy
   int wartosc_kata = 0;
-  
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,20 +123,17 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-/*	  wartosc_kata+=10;
-	  if(wartosc_kata > 180)
-		  wartosc_kata = 0;
-*/
+
 	  //kod testowy
 	 wartosc_kata = 180;
-	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
-	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&(minisumo.serwo_lewe_), wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&(minisumo.serwo_prawe_), wartosc_kata);
 	 HAL_Delay(1500);
 	 wartosc_kata = 0;
-	 Serwo_ustaw_nowy_kat(&serwo_lewe, wartosc_kata);
-	 Serwo_ustaw_nowy_kat(&serwo_prawe, wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&(minisumo.serwo_lewe_), wartosc_kata);
+	 Serwo_ustaw_nowy_kat(&(minisumo.serwo_prawe_), wartosc_kata);
 	 HAL_Delay(1500);
-	 
+
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 	  HAL_Delay(5000);
 	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -397,14 +396,14 @@ void pierwsza_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 	htim4.Init.Prescaler = 0;
 	HAL_TIM_Base_Init(&htim4);
 	HAL_TIM_Base_Start_IT(&htim4);
-	czujnik_analogowy.faza_pomiaru = pierwsza;
+	minisumo.czujnik_analogowy_.faza_pomiaru = pierwsza;
 }
 void druga_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 {
 	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);
 	//tim_co->stop
 	HAL_TIM_Base_Stop_IT(&htim4);
-	czujnik_analogowy.faza_pomiaru = druga;
+	minisumo.czujnik_analogowy_.faza_pomiaru = druga;
 }
 void trzecia_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 {
@@ -413,33 +412,26 @@ void trzecia_faza_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 	htim4.Init.Prescaler = 50;//bylo 15 - licznik sie zerowal
 	HAL_TIM_Base_Init(&htim4);
 	HAL_TIM_Base_Start(&htim4);
-	czujnik_analogowy.faza_pomiaru = trzecia;
+	minisumo.czujnik_analogowy_.faza_pomiaru = trzecia;
 }
 void zapis_wyniku_pomiaru_Analogowy_Czujnik_Odleglosci(void)
 {
 	//faza pomiaru czujnika analogowego odleglosci - brak(zapis wyniku i wylaczenie timera)
 	uint16_t pomiar = htim4.Instance->CNT;
-	czujnik_analogowy.odleglosc = Analogowy_Czujnik_Odleglosci_oblicz_odleglosc(pomiar, htim4.Init.Prescaler, htim4.Init.Period );//odleglosc w milimetrach
+	minisumo.czujnik_analogowy_.odleglosc = Analogowy_Czujnik_Odleglosci_oblicz_odleglosc(pomiar, htim4.Init.Prescaler, htim4.Init.Period );//odleglosc w milimetrach
 	HAL_TIM_Base_Stop(&htim4);
-	czujnik_analogowy.faza_pomiaru = brak;
-}
-void inicjalizacja_urzadzen_obslugiwanych(void)
-{
-	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_lewy);
-	Cyfrowy_Czujnik_Odleglosci_Init(&cyfrowy_czujnik_prawy);
-	Analogowy_Czujnik_Odleglosci_init(&czujnik_analogowy);
-	uruchom_PWM_serwomechanizmow();
+	minisumo.czujnik_analogowy_.faza_pomiaru = brak;
 }
 
 void pomiar_odleglosci_cyfrowy(void)
 {
-	cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = nie;
-	cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = nie;
+	minisumo.czujnik_cyfrowy_lewy_.czy_jest_cos_widoczne = nie;
+	minisumo.czujnik_cyfrowy_prawy_.czy_jest_cos_widoczne = nie;
 
 	if(HAL_GPIO_ReadPin(LEWY_CZUJNIK_GPIO_Port, LEWY_CZUJNIK_Pin)== GPIO_PIN_RESET)//zdaje sie, ze czujniki jesli cos widza to daja stan niski, w przeciwnym razie - wysoki
-		cyfrowy_czujnik_lewy.czy_jest_cos_widoczne = tak;
+		minisumo.czujnik_cyfrowy_lewy_.czy_jest_cos_widoczne = tak;
 	if(HAL_GPIO_ReadPin(PRAWY_CZUJNIK_GPIO_Port, PRAWY_CZUJNIK_Pin)== GPIO_PIN_RESET)
-		cyfrowy_czujnik_prawy.czy_jest_cos_widoczne = tak;
+		minisumo.czujnik_cyfrowy_prawy_.czy_jest_cos_widoczne = tak;
 }
 void uruchom_PWM_serwomechanizmow(void)
 {
@@ -450,14 +442,19 @@ void uruchom_PWM_serwomechanizmow(void)
 
 void aktualizacja_polozenia_serwomechanizmow(void)//powinna byc wolana co najmniej co 20 ms(taki jest okres sygnaly sterujacego serwami)
 {
-	uint8_t kat_lewego = Serwo_wartosc_kata(&serwo_lewe);
+	uint8_t kat_lewego = Serwo_wartosc_kata( &(minisumo.serwo_lewe_));
 	uint16_t CCR_lewego = Serwo_oblicz_wartosc_CCR(kat_lewego);
 	htim3.Instance->CCR1 = CCR_lewego;
 
-	uint8_t kat_prawego = Serwo_wartosc_kata(&serwo_prawe);
+	uint8_t kat_prawego = Serwo_wartosc_kata(&(minisumo.serwo_prawe_));
 	uint16_t CCR_prawego = Serwo_oblicz_wartosc_CCR(kat_prawego);
 	htim3.Instance->CCR2 = CCR_prawego;
 
+}
+void inicjalizacja_urzadzen_obslugiwanych(void)
+{
+	Robot_init(&minisumo);
+	uruchom_PWM_serwomechanizmow();
 }
 
 
