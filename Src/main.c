@@ -35,7 +35,7 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "Silnik.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -43,19 +43,25 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+Silnik silnik_lewy, silnik_prawy;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM3_Init(void);
+static void MX_TIM3_Init(void);                                    
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
+                                
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+
+void aktualizacja_silnika_lewego(void);
+void aktualizacja_silnika_prawego(void);
+void HAL_SYSTICK_Callback(void);
+
+
 
 /* USER CODE END PFP */
 
@@ -84,15 +90,45 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
+  /**
+   * inicjalizacja silników
+   */
+  Silnik_init(&silnik_lewy);
+  Silnik_init(&silnik_prawy);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
   while (1)
   {
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+		//do przodu i ca³a moc
+	  	Silnik_setKierunek(&silnik_lewy, PRZOD);
+	  	Silnik_setKierunek(&silnik_prawy, PRZOD);
+	    Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK);
+		Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK);
+		HAL_Delay(1000);
+
+		//do przodu mocy
+		Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK>>1 );
+		Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK>>1 );
+		HAL_Delay(1000);
+
+		//do ty³u i po³owa mocy
+	  	Silnik_setKierunek(&silnik_lewy, TYL);
+	  	Silnik_setKierunek(&silnik_prawy, TYL);
+	  	HAL_Delay(1000);
+
+	  	//do ty³u i ca³a moc
+	    Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK);
+		Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK);
+		HAL_Delay(1000);
+
 
   }
   /* USER CODE END 3 */
@@ -154,9 +190,9 @@ static void MX_TIM3_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = 127;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 0;
+  htim3.Init.Period = 9999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
@@ -226,8 +262,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : S1_KIER_Pin S2_KIER_Pin */
-  GPIO_InitStruct.Pin = S1_KIER_Pin|S2_KIER_Pin;
+  /*Configure GPIO pins : SILNIK_LEWY_KIER_Pin SILNIK_PRAWY_KIER_Pin */
+  GPIO_InitStruct.Pin = SILNIK_LEWY_KIER_Pin|SILNIK_PRAWY_KIER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -236,7 +272,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, S1_KIER_Pin|S2_KIER_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, SILNIK_LEWY_KIER_Pin|SILNIK_PRAWY_KIER_Pin, GPIO_PIN_SET);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
@@ -245,6 +281,51 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_SYSTICK_Callback(void)
+{
+	static int iterator_silnika = 0;
+	iterator_silnika++;
+	if(iterator_silnika >= OKRES_AKTUALIZACJI_SILNIKA)
+	{
+		iterator_silnika = 0;
+		aktualizacja_silnika_lewego();
+		aktualizacja_silnika_prawego();
+	}
+
+}
+
+void aktualizacja_silnika_lewego(void)
+{
+	uint16_t moc = Silnik_getMoc(&silnik_lewy);
+	htim3.Instance->CCR3 = moc;
+
+	Kierunek kier = Silnik_getKierunek(&silnik_lewy);
+	if(kier == PRZOD)
+	{
+		HAL_GPIO_WritePin(SILNIK_LEWY_KIER_GPIO_Port, SILNIK_LEWY_KIER_Pin, GPIO_PIN_SET);
+	}
+	else
+	{
+		HAL_GPIO_WritePin(SILNIK_LEWY_KIER_GPIO_Port, SILNIK_LEWY_KIER_Pin, GPIO_PIN_RESET);
+	}
+}
+void aktualizacja_silnika_prawego(void)
+{
+	uint16_t moc = Silnik_getMoc(&silnik_prawy);
+	htim3.Instance->CCR4 = moc;
+
+	Kierunek kier = Silnik_getKierunek(&silnik_prawy);
+	if(kier == PRZOD)
+	{
+		HAL_GPIO_WritePin(SILNIK_PRAWY_KIER_GPIO_Port, SILNIK_PRAWY_KIER_Pin, GPIO_PIN_SET);
+	}
+	else
+	{
+		HAL_GPIO_WritePin(SILNIK_PRAWY_KIER_GPIO_Port, SILNIK_PRAWY_KIER_Pin, GPIO_PIN_RESET);
+	}
+
+}
+
 
 /* USER CODE END 4 */
 
