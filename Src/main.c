@@ -56,7 +56,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+void uruchomienie_PWM_silnikow(void);
 void aktualizacja_silnika_lewego(void);
 void aktualizacja_silnika_prawego(void);
 void HAL_SYSTICK_Callback(void);
@@ -95,7 +95,7 @@ int main(void)
    */
   Silnik_init(&silnik_lewy);
   Silnik_init(&silnik_prawy);
-
+  uruchomienie_PWM_silnikow();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,7 +129,25 @@ int main(void)
 		Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK);
 		HAL_Delay(1000);
 
+	  Silnik_setKierunek(&silnik_lewy, TYL);
+	  Silnik_setKierunek(&silnik_prawy, TYL);
 
+	  int i;
+	  for(i=0;i<MAX_CCR_SILNIK; i+=100)
+	  {
+		  Silnik_setMoc(&silnik_lewy, i);
+		  Silnik_setMoc(&silnik_prawy, i);
+		  HAL_Delay(50);
+	  }
+	  Silnik_setKierunek(&silnik_lewy, PRZOD);
+	  Silnik_setKierunek(&silnik_prawy, PRZOD);
+
+	  for(i=MAX_CCR_SILNIK; i>=200; i-=100)
+	  {
+	  		  Silnik_setMoc(&silnik_lewy, i);
+	  		  Silnik_setMoc(&silnik_prawy, i);
+	  		  HAL_Delay(50);
+	  }
   }
   /* USER CODE END 3 */
 
@@ -325,7 +343,11 @@ void aktualizacja_silnika_prawego(void)
 	}
 
 }
-
+void uruchomienie_PWM_silnikow(void)
+{
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+}
 
 /* USER CODE END 4 */
 
