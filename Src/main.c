@@ -139,7 +139,28 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-/*		//do przodu i ca³a moc
+	  Silnik_setKierunek(&silnik_lewy, PRZOD);
+	  Silnik_setKierunek(&silnik_prawy, PRZOD);
+	  Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK>>2);
+	  Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK>>2);
+	  HAL_Delay(2000);
+	  Silnik_setMoc(&silnik_lewy, 0);
+	  Silnik_setMoc(&silnik_prawy, 0);
+	  HAL_Delay(500);
+
+	  Silnik_setKierunek(&silnik_lewy, TYL);
+	  Silnik_setKierunek(&silnik_prawy, TYL);
+	  Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK>>2);
+	  Silnik_setMoc(&silnik_prawy, MAX_CCR_SILNIK>>2);
+	  HAL_Delay(2000);
+	  Silnik_setMoc(&silnik_lewy, 0);
+	  Silnik_setMoc(&silnik_prawy, 0);
+	  HAL_Delay(500);
+
+
+
+
+	  /*		//do przodu i ca³a moc
 	  	Silnik_setKierunek(&silnik_lewy, PRZOD);
 	  	Silnik_setKierunek(&silnik_prawy, PRZOD);
 	    Silnik_setMoc(&silnik_lewy, MAX_CCR_SILNIK);
